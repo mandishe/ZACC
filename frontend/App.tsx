@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { Sidebar } from "./components/Sidebar";
 import { Dashboard } from "./components/Dashboard";
-import { ReportForm } from "./components/ReportForm";
+import  ReportForm  from "./components/ReportForm";
 import { InvestigatorView } from "./components/InvestigatorView";
 import { CaseTracking } from "./components/CaseTracking";
 import { UserManagement } from "./components/UserManagement";
@@ -36,6 +36,8 @@ export type View =
   | "reports"
   | "hotspots"
   | "authorities";
+
+  
 
 const App: React.FC = () => {
   const [user, setUser] = useState<User | null>(null);

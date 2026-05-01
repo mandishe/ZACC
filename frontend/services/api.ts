@@ -309,3 +309,35 @@ class ApiClient {
 }
 
 export const apiClient = new ApiClient();
+
+// frontend/services/api.ts
+
+// ... existing code ...
+
+export const submitReport = async (description: string, files: File[]) => {
+  // 1. Create a new FormData object
+  const formData = new FormData();
+  
+  // 2. Append the text description
+  formData.append('description', description);
+  
+  // 3. Append each file. Notice the 'files[]' syntax - this tells Laravel to expect an array of files.
+  files.forEach((file) => {
+    formData.append('files[]', file);
+  });
+
+  // 4. Send the POST request
+  // Note: We deliberately DO NOT set the 'Content-Type' header here. 
+  // The browser automatically sets it to 'multipart/form-data' with the correct boundary when it sees a FormData object.
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/reports`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || 'Failed to submit the secure report.');
+  }
+
+  return response.json();
+};
