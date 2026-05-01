@@ -12,6 +12,11 @@ use App\Http\Controllers\Api\ChatbotController;
 use App\Http\Controllers\Api\ReportGenerationController;
 use App\Http\Controllers\Api\HotspotController;
 
+// ... other routes ...
+
+// The endpoint your frontend is hitting
+Route::post('/reports', [ReportController::class, 'store']);
+
 /*
 |--------------------------------------------------------------------------
 | API Routes

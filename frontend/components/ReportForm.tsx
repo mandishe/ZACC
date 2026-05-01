@@ -1,11 +1,24 @@
+import { submitReport } from '../services/api';
 import React, { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { UploadCloud, File, AlertCircle, CheckCircle, Shield } from "lucide-react";
+import { User } from "../types";
+import { Language, t } from "../i18n";
 
 const MAX_FILES = 10;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
-export default function ReportForm() {
+interface ReportFormProps {
+  user: User;
+  language: Language;
+  onSuccess: () => void;
+}
+
+export default function ReportForm({
+  user,
+  language,
+  onSuccess,
+}: ReportFormProps) {
   const [description, setDescription] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -40,21 +53,30 @@ export default function ReportForm() {
   };
 
   // 🚀 Submit
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!description.trim()) {
-      setError("Please provide a description.");
+    if (files.length === 0 && description === "") {
+      setError("Please provide a description or attach evidence before submitting.");
       return;
     }
 
     setIsSubmitting(true);
+    setError(null);
 
-    // 🔐 Simulate secure submission
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      await submitReport(description, files);
+
       setIsSuccess(true);
-    }, 2000);
+
+      // ✅ IMPORTANT: notify parent (App.tsx)
+      onSuccess();
+
+    } catch (err: any) {
+      setError(err.message || "Failed to connect to the secure server. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // ✅ Success UI
@@ -62,27 +84,34 @@ export default function ReportForm() {
     return (
       <div className="flex flex-col items-center justify-center p-8 bg-green-50 rounded-xl border border-green-200">
         <CheckCircle className="w-16 h-16 text-green-600 mb-4" />
-        <h3 className="text-2xl font-bold text-green-900">Report Submitted Securely</h3>
+        <h3 className="text-2xl font-bold text-green-900">
+          {t(language, "reportSubmitted") || "Report Submitted Securely"}
+        </h3>
         <p className="text-green-700 mt-2 text-center">
-          Your evidence has been encrypted and sent for analysis. Your anonymity remains fully protected.
+          {t(language, "reportSuccessMessage") ||
+            "Your evidence has been encrypted and sent for analysis. Your anonymity remains fully protected."}
         </p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl mx-auto p-6 bg-white rounded-xl shadow-lg border border-gray-100">
-
+    <form
+      onSubmit={handleSubmit}
+      className="max-w-3xl mx-auto p-6 bg-white rounded-xl shadow-lg border border-gray-100"
+    >
       {/* Header */}
       <div className="flex items-center gap-2 mb-6 text-slate-700">
         <Shield className="w-6 h-6 text-blue-600" />
-        <h2 className="text-xl font-bold">Secure Upload Portal</h2>
+        <h2 className="text-xl font-bold">
+          {t(language, "secureUpload") || "Secure Upload Portal"}
+        </h2>
       </div>
 
       {/* Description */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Description of Events
+          {t(language, "description") || "Description of Events"}
         </label>
         <textarea
           className="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none h-32"
@@ -146,10 +175,12 @@ export default function ReportForm() {
       {/* Submit */}
       <button
         type="submit"
-        disabled={isSubmitting}
-        className="w-full mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-lg disabled:opacity-50 flex justify-center items-center gap-2"
+        disabled={isSubmitting || (files.length === 0 && description === "")}
+        className="w-full mt-8 bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-lg transition-colors disabled:opacity-50 flex justify-center items-center gap-2"
       >
-        {isSubmitting ? "Encrypting & Sending..." : "Submit Report Anonymously"}
+        {isSubmitting
+          ? "Encrypting & Sending..."
+          : "Submit Report Anonymously"}
       </button>
     </form>
   );
