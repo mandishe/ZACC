@@ -5,6 +5,27 @@ import { CorruptionType, User } from "../types";
 import { Language, t } from "../i18n";
 import { toast } from "react-hot-toast";
 import { ALL_LANGUAGES, PRIORITY_LANGUAGES, getLanguageName } from "../lib/languages";
+import { useDropzone } from 'react-dropzone';
+import { UploadCloud, File, AlertCircle, CheckCircle, Shield } from 'lucide-react';
+
+// File upload configuration
+const MAX_FILES = 10;
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ACCEPTED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "video/mp4",
+  "video/quicktime",
+  "audio/mpeg",
+  "audio/wav",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+];
 
 interface ReportFormProps {
   user: User;
@@ -89,24 +110,6 @@ function fuzzyMatch(query: string, text: string): { match: boolean; score: numbe
   return { match: false, score: 0 };
 }
 
-const MAX_FILES = 10;
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ACCEPTED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "video/mp4",
-  "video/quicktime",
-  "audio/mpeg",
-  "audio/wav",
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "text/plain",
-];
-
 const fileIcon = (type: string) => {
   if (type.startsWith("image/")) return "🖼️";
   if (type.startsWith("video/")) return "🎬";
@@ -115,9 +118,11 @@ const fileIcon = (type: string) => {
   return "📎";
 };
 
-export const ReportForm: React.FC<ReportFormProps> = ({ user, language, onSuccess }) => {
-  const [loading, setLoading] = useState(false);
+export default function ReportForm({ language, onSuccess }: ReportFormProps) {
+  const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [formData, setFormData] = useState({
     type: CorruptionType.BRIBERY,
@@ -242,9 +247,45 @@ export const ReportForm: React.FC<ReportFormProps> = ({ user, language, onSucces
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const removeFile = (index: number) => {
-    setFiles((prev) => prev.filter((_, i) => i !== index));
-    setFileErrors([]);
+  // ── Dropzone logic ──
+  const onDrop = useCallback((acceptedFiles: File[], fileRejections: any[]) => {
+    setError(null);
+
+    // Handle Validation Errors
+    if (fileRejections.length > 0) {
+      setError("Some files were rejected. Please ensure they are accepted formats and under 10MB.");
+      return;
+    }
+
+    // Check for max file limit
+    if (files.length + acceptedFiles.length > MAX_FILES) {
+      setError(`Maximum ${MAX_FILES} files allowed.`);
+      return;
+    }
+
+    // Append new files to existing ones
+    setFiles((prev) => [...prev, ...acceptedFiles]);
+  }, [files.length]);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'image/*': ['.jpeg', '.jpg', '.png', '.gif'],
+      'video/*': ['.mp4', '.quicktime'],
+      'audio/*': ['.mpeg', '.wav', '.mp3'],
+      'application/pdf': ['.pdf'],
+      'application/msword': ['.doc', '.docx'],
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+      'application/vnd.ms-excel': ['.xls'],
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+      'text/plain': ['.txt'],
+    },
+    maxSize: MAX_FILE_SIZE,
+    maxFiles: MAX_FILES,
+  });
+
+  const removeFile = (indexToRemove: number) => {
+    setFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
   };
 
   // ── Language detection & text clarity checking ──
