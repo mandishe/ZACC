@@ -12,6 +12,26 @@ use Gemini\Client;
 
 class ReportController extends Controller
 {
+    public function index()
+    {
+        // Fetch all reports from the database, ordered by the newest first
+        $reports = \App\Models\Report::orderBy('created_at', 'desc')->get();
+
+        // Calculate the file count for each report if you have relationships set up, 
+        // or just return the base reports for now so the dashboard renders.
+        
+        return response()->json($reports, 200);
+    }
+
+    public function show($id)
+    {
+        // Find the report. If you have an attachments relationship, load it here.
+        // e.g., $report = \App\Models\Report::with('attachments')->findOrFail($id);
+        $report = \App\Models\Report::findOrFail($id);
+
+        return response()->json($report, 200);
+    }
+    
     public function store(Request $request)
     {
         // 1. Validate

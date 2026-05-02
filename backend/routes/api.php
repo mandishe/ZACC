@@ -16,7 +16,8 @@ use App\Http\Controllers\Api\HotspotController;
 
 // The endpoint your frontend is hitting
 Route::post('/reports', [ReportController::class, 'store']);
-
+Route::get('/reports', [ReportController::class, 'index']);
+Route::get('/reports/{id}', [ReportController::class, 'show']);
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -57,17 +58,17 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/user', [AuthController::class, 'user']);
 
     // Report routes
-    Route::get('/reports', [ReportController::class, 'index']);
+    //Route::get('/reports', [ReportController::class, 'index']);
     Route::get('/reports/type-correction-audit', [ReportController::class, 'typeCorrectionAudit']);
     Route::get('/cases', [ReportController::class, 'index']); // Frontend alias
-    Route::post('/reports', [ReportController::class, 'store']);
+    //Route::post('/reports', [ReportController::class, 'store']);
     Route::get('/reports/stats', [ReportController::class, 'stats']);
 
     // Report generation routes (must be before /reports/{id} wildcard)
     Route::get('/reports/generate/summary', [ReportGenerationController::class, 'summary']);
     Route::get('/reports/generate/export', [ReportGenerationController::class, 'export']);
 
-    Route::get('/reports/{id}', [ReportController::class, 'show'])->where('id', '[A-Za-z0-9-]+');
+    //Route::get('/reports/{id}', [ReportController::class, 'show'])->where('id', '[A-Za-z0-9-]+');
     Route::get('/reports/{id}/attachments/{attachmentId}/download', [ReportController::class, 'downloadAttachment'])
         ->where('id', '[A-Za-z0-9-]+')
         ->whereNumber('attachmentId');
