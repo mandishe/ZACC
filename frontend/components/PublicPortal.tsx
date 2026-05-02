@@ -223,7 +223,7 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
 
   // Report form state
   const [formData, setFormData] = useState({
-    type: "Bribery",
+    // type: "Bribery",
     institution: "",
     location: "",
     description: "",
@@ -362,7 +362,7 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
     setPortalPreSuggestionsLoading(true);
     try {
       const resp = await apiClient.preSubmissionSuggestions({
-        type: formData.type,
+        //type: formData.type,
         description: formData.description,
         institution: formData.institution,
         location: formData.location,
@@ -420,7 +420,7 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
       setSubmitted(response.data);
       setReportFiles([]);
       setReportFileError(null);
-      setFormData({ type: "Bribery", institution: "", location: "", description: "" });
+      setFormData({ institution: "", location: "", description: "" });
     } catch (err: any) {
       setError(err.message || "Failed to submit report");
     } finally {
@@ -660,7 +660,7 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
                 <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-5 py-3 text-xs text-emerald-800 dark:text-emerald-300 font-semibold">
                   {t(language, "identityProtected")}
                 </div>
-                <div className="grid grid-cols-1 gap-5">
+                {/* <div className="grid grid-cols-1 gap-5">
                   <div>
                     <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-2">{t(language, "corruptionType")}</label>
                     <select value={formData.type} onChange={e => setFormData({ ...formData, type: e.target.value })}
@@ -669,7 +669,7 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
                       <option>Embezzlement</option><option>Nepotism</option><option>Other</option>
                     </select>
                   </div>
-                </div>
+                </div> */}
                 
                 <div>
                   <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider block mb-2">{t(language, "affectedInstitution")}</label>

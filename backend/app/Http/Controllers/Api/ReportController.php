@@ -8,41 +8,50 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
-use Gemini\Client;
+use App\Models\Report;
+use App\Models\ReportAttachment;
+use App\Services\ExpertEvaluationService; // ✅ NEW SERVICE
 
 class ReportController extends Controller
 {
+    protected $aiService;
+
+    public function __construct(ExpertEvaluationService $aiService)
+    {
+        $this->aiService = $aiService;
+    }
+
+    // =========================
+    // GET ALL REPORTS
+    // =========================
     public function index()
     {
-        // Fetch all reports from the database, ordered by the newest first
-        $reports = \App\Models\Report::orderBy('created_at', 'desc')->get();
-
-        // Calculate the file count for each report if you have relationships set up, 
-        // or just return the base reports for now so the dashboard renders.
-        
+        $reports = Report::orderBy('created_at', 'desc')->get();
         return response()->json($reports, 200);
     }
 
+    // =========================
+    // GET SINGLE REPORT
+    // =========================
     public function show($id)
     {
-        // Find the report. If you have an attachments relationship, load it here.
-        // e.g., $report = \App\Models\Report::with('attachments')->findOrFail($id);
-        $report = \App\Models\Report::findOrFail($id);
-
+        $report = Report::findOrFail($id);
         return response()->json($report, 200);
     }
 
+    // =========================
+    // TRACK BY CODE
+    // =========================
     public function track($code)
     {
-        // Look up the report by its reference_code
-        $report = \App\Models\Report::where('reference_code', $code)->first();
+        $report = Report::where('reference_code', $code)->first();
 
         if (!$report) {
-            return response()->json(['message' => 'Invalid tracking code or case not found.'], 404);
+            return response()->json([
+                'message' => 'Invalid tracking code or case not found.'
+            ], 404);
         }
 
-        // SECURITY: ONLY return non-sensitive fields. 
-        // Never return the description, AI summary, or risk score here.
         return response()->json([
             'reference_code' => $report->reference_code,
             'status' => $report->status,
@@ -50,30 +59,32 @@ class ReportController extends Controller
         ], 200);
     }
 
+    // =========================
+    // HOTSPOTS ANALYSIS
+    // =========================
     public function hotspots()
     {
-        // Group the reports by their AI-assigned type, count them, and average the risk score
-        $hotspots = \App\Models\Report::selectRaw('type as category, count(*) as count, avg(risk_score) as avgSeverity')
-            ->whereNotNull('type') // Ensure we only count categorized reports
+        $hotspots = Report::selectRaw('type as category, count(*) as count, avg(risk_score) as avgSeverity')
+            ->whereNotNull('type')
             ->groupBy('type')
             ->get();
 
-        // Format the numbers cleanly for the frontend
-        $formatted = $hotspots->map(function ($item) {
-            return [
+        return response()->json(
+            $hotspots->map(fn($item) => [
                 'category' => $item->category,
                 'count' => (int) $item->count,
-                'avgSeverity' => round((float) $item->avgSeverity, 1) // Round to 1 decimal place
-            ];
-        });
-
-        return response()->json($formatted, 200);
+                'avgSeverity' => round((float) $item->avgSeverity, 1)
+            ]),
+            200
+        );
     }
-    
+
+    // =========================
+    // STORE REPORT (UPDATED)
+    // =========================
     public function store(Request $request)
     {
-        // 1. Validate
-        $request->validate([
+        $validated = $request->validate([
             'description' => 'nullable|string',
             'files' => 'nullable|array|max:10',
             'files.*' => 'file|max:51200|mimes:jpg,jpeg,png,pdf,docx,mp4',
@@ -86,7 +97,9 @@ class ReportController extends Controller
             $storagePath = 'private/reports/' . $trackingCode;
             $savedFiles = [];
 
-            // 2. Save files
+            // =========================
+            // SAVE FILES
+            // =========================
             if ($request->hasFile('files')) {
                 foreach ($request->file('files') as $file) {
                     $path = $file->store($storagePath);
@@ -100,113 +113,38 @@ class ReportController extends Controller
                 }
             }
 
-            // 3. Prepare AI input
-            $evidenceString = "User Description: " . ($request->description ?? 'None provided.') . "\n\n";
-            $imageParts = [];
+            // =========================
+            // AI ANALYSIS VIA SERVICE
+            // =========================
+            $aiAnalysis = $this->aiService->evaluateReport(
+                $validated['description'] ?? ''
+            );
 
-            foreach ($savedFiles as $fileInfo) {
-                if (str_starts_with($fileInfo['mime_type'], 'image/')) {
-                    $imageParts[] = [
-                        'mimeType' => $fileInfo['mime_type'],
-                        'data' => base64_encode(file_get_contents($fileInfo['absolute_path']))
-                    ];
-                } elseif ($fileInfo['mime_type'] === 'application/pdf') {
-                    if (class_exists(\Spatie\PdfToText\Pdf::class)) {
-                        try {
-                            $text = \Spatie\PdfToText\Pdf::getText($fileInfo['absolute_path']);
-                            $evidenceString .= "PDF ({$fileInfo['original_name']}):\n{$text}\n\n";
-                        } catch (\Exception $e) {
-                            Log::error("PDF extraction failed: " . $e->getMessage());
-                        }
-                    }
-                }
-            }
+            // =========================
+            // SAVE REPORT
+            // =========================
+            $report = Report::create([
+                'tracking_code' => $trackingCode, // internal
+                'reference_code' => $trackingCode, // external tracking
+                'description' => $validated['description'] ?? null,
 
-            // 4. Prompt
-            $prompt = "
-You are an expert investigator for ZACC.
+                // ✅ Map AI response safely
+                'type' => $aiAnalysis['type_inference']['inferred_type'] ?? 'Uncategorized',
+                'risk_score' => $aiAnalysis['risk_score'] ?? 0,
 
-Analyze the following evidence:
+                'ai_summary' => json_encode([
+                    'type_inference' => $aiAnalysis['type_inference'] ?? null,
+                    'summary_text' => $aiAnalysis['summary'] ?? null
+                ]),
 
-{$evidenceString}
-
-Respond ONLY with valid JSON:
-{
-  \"category\": \"String\",
-  \"image_analysis\": \"String\",
-  \"summary\": \"String\",
-  \"severity_score\": Integer
-}
-";
-
-            // 5. Call Gemini (CORRECT SDK USAGE)
-            try {
-                $client = new Client(env('GEMINI_API_KEY'));
-
-                if (count($imageParts) > 0) {
-                    // Multimodal request
-                   $parts = [
-    [
-        'text' => $prompt
-    ]
-];
-
-foreach ($imageParts as $img) {
-    $parts[] = [
-        'inlineData' => [
-            'mimeType' => $img['mimeType'],
-            'data' => $img['data']
-        ]
-    ];
-}
-
-                    $model = count($imageParts) > 0
-                    ? 'gemini-1.5-flash'   // supports images
-                    : 'gemini-1.5-flash';  // also fine for text
-
-                $response = $client
-                    ->generativeModel($model)
-                    ->generateContent($parts);
-                } else {
-                    // Text-only
-                    $response = $client->geminiPro()->generateContent($prompt);
-                }
-
-                $aiText = $response->text() ?? '';
-
-                // Clean response
-                $clean = trim(str_replace(['```json', '```'], '', $aiText));
-                $aiAnalysis = json_decode($clean, true);
-
-                if (!is_array($aiAnalysis)) {
-                    throw new \Exception("Invalid AI JSON: " . $clean);
-                }
-
-            } catch (\Exception $e) {
-                Log::error("AI failed: " . $e->getMessage());
-
-                $aiAnalysis = [
-                    'category' => 'Uncategorized',
-                    'image_analysis' => 'AI failed',
-                    'summary' => 'Manual review required',
-                    'severity_score' => 0
-                ];
-            }
-
-            // 6. Save Report
-            $report = \App\Models\Report::create([
-                'tracking_code' => $trackingCode,
-                'description' => $request->description,
-                'category' => $aiAnalysis['category'] ?? 'Uncategorized',
-                'ai_summary' => "Images: " . ($aiAnalysis['image_analysis'] ?? '') .
-                    "\n\nText: " . ($aiAnalysis['summary'] ?? ''),
-                'severity_score' => $aiAnalysis['severity_score'] ?? 0,
                 'status' => 'SUBMITTED'
             ]);
 
-            // 7. Save attachments
+            // =========================
+            // SAVE ATTACHMENTS
+            // =========================
             foreach ($savedFiles as $fileInfo) {
-                \App\Models\ReportAttachment::create([
+                ReportAttachment::create([
                     'report_id' => $report->id,
                     'file_name' => $fileInfo['original_name'],
                     'file_path' => $fileInfo['path'],
@@ -216,13 +154,12 @@ foreach ($imageParts as $img) {
 
             DB::commit();
 
-            // 8. Response
             return response()->json([
                 'message' => 'Report securely logged and analyzed.',
                 'tracking_code' => $trackingCode,
                 'file_count' => count($savedFiles),
                 'status' => 'SUBMITTED',
-                'severity_score' => $aiAnalysis['severity_score'] ?? 0
+                'severity_score' => $aiAnalysis['risk_score'] ?? 0
             ], 201);
 
         } catch (\Exception $e) {
@@ -231,7 +168,7 @@ foreach ($imageParts as $img) {
             Log::error("Report submission failed: " . $e->getMessage());
 
             return response()->json([
-                'message' => 'Failed to submit report.',
+                'message' => 'Failed to submit report.'
             ], 500);
         }
     }

@@ -50,8 +50,8 @@ Route::middleware('throttle:public-reports')->group(function () {
 });
 
 Route::post('/chatbot', [ChatbotController::class, 'chat'])->middleware('throttle:chatbot');
-Route::post('/ai/pre-submission-suggestions-public', [AIController::class, 'preSubmissionSuggestions'])->middleware('throttle:public-reports');
-Route::post('/ai/validate-text', [AIController::class, 'validateTextClarity'])->middleware('throttle:public-reports');
+// Route::post('/ai/pre-submission-suggestions-public', [AIController::class, 'preSubmissionSuggestions'])->middleware('throttle:public-reports');
+// Route::post('/ai/validate-text', [AIController::class, 'validateTextClarity'])->middleware('throttle:public-reports');
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
@@ -87,12 +87,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/hotspots', [HotspotController::class, 'index']);
 
     // AI routes
-    Route::post('/ai/analyze-report', [AIController::class, 'analyzeReport']);
-    Route::get('/ai/expert-review/{id}', [AIController::class, 'expertCaseReview'])->where('id', '[A-Za-z0-9-]+');
-    Route::get('/ai/scan-evidence/{id}', [AIController::class, 'scanEvidence'])->where('id', '[A-Za-z0-9-]+');
-    Route::get('/ai/pre-review-analysis/{id}', [AIController::class, 'preReviewAnalysis'])->where('id', '[A-Za-z0-9-]+');
-    Route::post('/ai/pre-submission-suggestions', [AIController::class, 'preSubmissionSuggestions']);
-    Route::post('/ai/translate', [AIController::class, 'translateText']);
+    // Route::post('/ai/analyze-report', [AIController::class, 'analyzeReport']);
+    // Route::get('/ai/expert-review/{id}', [AIController::class, 'expertCaseReview'])->where('id', '[A-Za-z0-9-]+');
+    // Route::get('/ai/scan-evidence/{id}', [AIController::class, 'scanEvidence'])->where('id', '[A-Za-z0-9-]+');
+    // Route::get('/ai/pre-review-analysis/{id}', [AIController::class, 'preReviewAnalysis'])->where('id', '[A-Za-z0-9-]+');
+    // Route::post('/ai/pre-submission-suggestions', [AIController::class, 'preSubmissionSuggestions']);
+    // Route::post('/ai/translate', [AIController::class, 'translateText']);
 
     // Admin: recalculate all report priorities using latest expert system
     Route::post('/reports/recalculate-priorities', [ReportController::class, 'recalculatePriorities']);
