@@ -20,8 +20,8 @@ import { AuthorityFindings } from "./components/AuthorityFindings";
 import { Toaster } from "react-hot-toast";
 import { apiClient } from "./services/api";
 import InvestigatorView from "./components/InvestigatorView";
+import CaseDetailView from "./components/CaseDetailView";
 import CorruptionHotspots from "./components/CorruptionHotspots";
-import CaseDetailView from "./components/CaseDetailView"; // ✅ NEW
 
 type ThemeMode = "system" | "light" | "dark";
 
@@ -201,6 +201,9 @@ const App: React.FC = () => {
             }}
           />
         );
+
+      case "hotspots": 
+        return <CorruptionHotspots />;
 
       case "tracking":
         return (

@@ -371,3 +371,34 @@ export const fetchReportDetails = async (id: number | string) => {
 
   return response.json();
 };
+
+export const fetchHotspots = async () => {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/analytics/hotspots`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch analytics data.');
+  }
+
+  return response.json();
+};
+
+export const trackCase = async (trackingCode: string) => {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/track/${trackingCode}`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+    }
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => null);
+    throw new Error(errorData?.message || 'Case not found. Please check your code.');
+  }
+
+  return response.json();
+};

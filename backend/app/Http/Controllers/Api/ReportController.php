@@ -31,6 +31,44 @@ class ReportController extends Controller
 
         return response()->json($report, 200);
     }
+
+    public function track($code)
+    {
+        // Look up the report by its reference_code
+        $report = \App\Models\Report::where('reference_code', $code)->first();
+
+        if (!$report) {
+            return response()->json(['message' => 'Invalid tracking code or case not found.'], 404);
+        }
+
+        // SECURITY: ONLY return non-sensitive fields. 
+        // Never return the description, AI summary, or risk score here.
+        return response()->json([
+            'reference_code' => $report->reference_code,
+            'status' => $report->status,
+            'created_at' => $report->created_at->toIso8601String(),
+        ], 200);
+    }
+
+    public function hotspots()
+    {
+        // Group the reports by their AI-assigned type, count them, and average the risk score
+        $hotspots = \App\Models\Report::selectRaw('type as category, count(*) as count, avg(risk_score) as avgSeverity')
+            ->whereNotNull('type') // Ensure we only count categorized reports
+            ->groupBy('type')
+            ->get();
+
+        // Format the numbers cleanly for the frontend
+        $formatted = $hotspots->map(function ($item) {
+            return [
+                'category' => $item->category,
+                'count' => (int) $item->count,
+                'avgSeverity' => round((float) $item->avgSeverity, 1) // Round to 1 decimal place
+            ];
+        });
+
+        return response()->json($formatted, 200);
+    }
     
     public function store(Request $request)
     {

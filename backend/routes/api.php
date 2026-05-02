@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\HotspotController;
 Route::post('/reports', [ReportController::class, 'store']);
 Route::get('/reports', [ReportController::class, 'index']);
 Route::get('/reports/{id}', [ReportController::class, 'show']);
+Route::get('/analytics/hotspots', [ReportController::class, 'hotspots']);
+Route::get('/track/{code}', [ReportController::class, 'track']);
 /*
 |--------------------------------------------------------------------------
 | API Routes
