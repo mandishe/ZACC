@@ -26,7 +26,7 @@ class PublicReportController extends Controller
     public function storeAnonymous(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'type'        => ['required', 'string', 'max:255'],
+            //'type'        => ['required', 'string', 'max:255'],
             'institution' => ['required', 'string', 'max:255'],
             'location'    => ['nullable', 'string', 'max:255'],
             'description' => ['required', 'string', 'min:20'],

@@ -289,7 +289,7 @@ class ApiClient {
     return this.request(`/ai/pre-review-analysis/${caseId}`);
   }
 
-  async preSubmissionSuggestions(data: { type: string; description: string; institution?: string; location?: string }) {
+  async preSubmissionSuggestions(data: {  description: string; institution?: string; location?: string }) {
     // Use authenticated route if token exists, otherwise public route
     const endpoint = this.token ? '/ai/pre-submission-suggestions' : '/ai/pre-submission-suggestions-public';
     return this.request(endpoint, 'POST', data);
