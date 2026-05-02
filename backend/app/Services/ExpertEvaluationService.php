@@ -10,7 +10,7 @@ class ExpertEvaluationService
     /**
      * Sends the report description to Gemini to get dynamic categorization and scoring.
      */
-    public function evaluateReport(string $description): array
+    public function evaluateReport(string $description, array $evidenceFiles = []): array
     {
         $apiKey = env('GEMINI_API_KEY');
 

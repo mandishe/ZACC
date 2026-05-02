@@ -20,6 +20,8 @@ Route::get('/reports', [ReportController::class, 'index']);
 Route::get('/reports/{id}', [ReportController::class, 'show']);
 Route::get('/analytics/hotspots', [ReportController::class, 'hotspots']);
 Route::get('/track/{code}', [ReportController::class, 'track']);
+Route::get('/reports/hotspots', [ReportController::class, 'hotspots']);
+Route::get('/reports/summary', [ReportController::class, 'summary']);
 /*
 |--------------------------------------------------------------------------
 | API Routes
