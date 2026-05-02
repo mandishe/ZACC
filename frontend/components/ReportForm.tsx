@@ -9,7 +9,7 @@ const MAX_FILES = 10;
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 interface ReportFormProps {
-  user: User;
+  user: any | null;
   language: Language;
   onSuccess: () => void;
 }
