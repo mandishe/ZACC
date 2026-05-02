@@ -341,3 +341,33 @@ export const submitReport = async (description: string, files: File[]) => {
 
   return response.json();
 };
+
+export const fetchReports = async () => {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/reports`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch reports from the server.');
+  }
+
+  return response.json();
+};
+
+export const fetchReportDetails = async (id: number | string) => {
+  const response = await fetch(`${import.meta.env.VITE_API_URL}/reports/${id}`, {
+    method: 'GET',
+    headers: {
+      'Accept': 'application/json',
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch case details.');
+  }
+
+  return response.json();
+};
