@@ -202,8 +202,8 @@ const App: React.FC = () => {
           />
         );
 
-      case "hotspots": 
-        return <CorruptionHotspots />;
+      // case "hotspots": 
+      //   return <CorruptionHotspots />;
 
       case "tracking":
         return (
