@@ -118,19 +118,27 @@ export default function CaseDetailView({ caseId, onBack }: { caseId: number | st
             </h3>
             
             <div className="space-y-3">
-              {/* Note: Map through report.attachments here if your backend returns them */}
-              <div className="flex items-center justify-between bg-slate-900 p-3 rounded-lg border border-slate-700">
-                <span className="text-sm text-slate-300 truncate pr-4">contract_audit_2025.pdf</span>
-                <button className="text-blue-400 hover:text-blue-300 p-2 bg-blue-500/10 rounded-md transition-colors">
-                  <Download className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex items-center justify-between bg-slate-900 p-3 rounded-lg border border-slate-700">
-                <span className="text-sm text-slate-300 truncate pr-4">ledger_discrepancy.png</span>
-                <button className="text-blue-400 hover:text-blue-300 p-2 bg-blue-500/10 rounded-md transition-colors">
-                  <Download className="w-4 h-4" />
-                </button>
-              </div>
+              {report.attachments && report.attachments.length > 0 ? (
+                report.attachments.map((file: any) => (
+                  <div key={file.id} className="flex items-center justify-between bg-slate-900 p-3 rounded-lg border border-slate-700">
+                    <span className="text-sm text-slate-300 truncate pr-4" title={file.original_name}>
+                      {file.original_name}
+                    </span>
+                    <a
+                      href={file.download_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 p-2 bg-blue-500/10 rounded-md transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                    </a>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4 text-slate-500 text-sm italic">
+                  No evidence files attached to this case.
+                </div>
+              )}
             </div>
             
           </div>

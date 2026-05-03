@@ -67,16 +67,10 @@ class PublicReportController extends Controller
             is_array($evidenceFiles) ? $evidenceFiles : [$evidenceFiles]
         );
 
-        // 3. Encrypt the description BEFORE saving it to the database
-        // Note: If your Report.php model already uses `$casts = ['description' => 'encrypted']`,
-        // you can remove the Crypt::encryptString wrapper and just pass $validated['description'].
-        $secureDescription = Crypt::encryptString($validated['description']);
-
-        // 4. Save the report securely
-        $report = Report::create([
+        // 3. Prepare the report instance
+        $report = new Report([
             'case_id' => Report::generateCaseId(),
             'reference_code' => 'ZACC-REF-' . strtoupper(substr(uniqid(), -4)),
-            'description' => $secureDescription, // Now it is secure at rest!
             'institution' => $validated['institution'],
             'type' => $aiAnalysis['type_inference']['inferred_type'] ?? 'Unclassified',
             'risk_score' => $aiAnalysis['risk_score'] ?? 0,
@@ -88,6 +82,15 @@ class PublicReportController extends Controller
             'province' => $validated['province'] ?? null,
             'location' => $validated['location'] ?? null,
         ]);
+
+        // 4. Encrypt sensitive data using the model's secure method
+        $report->setEncryptedData([
+            'description' => $validated['description'],
+            'location' => $validated['location'] ?? null,
+            'institution' => $validated['institution'],
+        ]);
+
+        $report->save();
 
         // 5. Save the physical files and link them in the database
         if (!empty($evidenceFiles)) {
