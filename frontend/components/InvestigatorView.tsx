@@ -58,7 +58,7 @@ export default function InvestigatorView({ user, onCaseViewed }: any) {
     
     // If it is the type_inference object from your database
     if (summary.type_inference) {
-        return `Inferred Category: ${summary.type_inference.inferred_type} \nConfidence Level: ${summary.type_inference.confidence}% \n\nAdditional text analysis pending or restricted.`;
+        return `Inferred Category: ${summary.type_inference.inferred_type} \nConfidence Level: ${summary.type_inference.confidence}% \n\n${summary.summary_text || "Additional text analysis pending or restricted."}`;
     }
     
     // Fallback: safely convert any other object to a string

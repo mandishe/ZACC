@@ -13,6 +13,7 @@ class ExpertEvaluationService
     public function evaluateReport(string $description, array $evidenceFiles = []): array
     {
         $apiKey = env('GEMINI_API_KEY');
+        $model = config('services.gemini.model', 'gemini-2.0-flash');
 
         if (!$apiKey) {
             Log::error('CRITICAL: Gemini API key is missing from the .env file.');
@@ -60,16 +61,44 @@ class ExpertEvaluationService
             // Make the HTTP POST request to the Gemini API
             $response = Http::withHeaders([
                 'Content-Type' => 'application/json'
-            ])->post('https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=' . $apiKey, [
+            ])->post('https://generativelanguage.googleapis.com/v1beta/models/' . $model . ':generateContent?key=' . $apiKey, [
                 'contents' => [
                     [
                         'parts' => $parts
+                    ]
+                ],
+                'generationConfig' => [
+                    'response_mime_type' => 'application/json',
+                    'temperature' => 0.1,
+                ],
+                'safetySettings' => [
+                    [
+                        'category' => 'HARM_CATEGORY_HARASSMENT',
+                        'threshold' => 'BLOCK_NONE'
+                    ],
+                    [
+                        'category' => 'HARM_CATEGORY_HATE_SPEECH',
+                        'threshold' => 'BLOCK_NONE'
+                    ],
+                    [
+                        'category' => 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+                        'threshold' => 'BLOCK_NONE'
+                    ],
+                    [
+                        'category' => 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                        'threshold' => 'BLOCK_NONE'
                     ]
                 ]
             ]);
 
             if ($response->successful()) {
                 $result = $response->json();
+
+                // Check if the response was blocked by safety filters
+                if (isset($result['candidates'][0]['finishReason']) && $result['candidates'][0]['finishReason'] === 'SAFETY') {
+                    Log::warning('Gemini response blocked by safety filters despite BLOCK_NONE.');
+                    return $this->fallbackResponse('Safety Blocked');
+                }
 
                 // Extract the text from Gemini's response
                 $textResponse = $result['candidates'][0]['content']['parts'][0]['text'] ?? '';

@@ -145,10 +145,10 @@ class ReportController extends Controller
             'type' => $aiAnalysis['type_inference']['inferred_type'] ?? 'Uncategorized',
             'risk_score' => $aiAnalysis['risk_score'] ?? 0,
 
-            'ai_summary' => json_encode([
+            'ai_summary' => [
                 'type_inference' => $aiAnalysis['type_inference'] ?? null,
                 'summary_text' => $aiAnalysis['summary'] ?? null
-            ]),
+            ],
 
             'status' => 'SUBMITTED'
         ]);

@@ -26,7 +26,7 @@ export default function CaseDetailView({ caseId, onBack }: { caseId: number | st
     if (!summary) return "No AI summary available.";
     if (typeof summary === 'string') return summary;
     if (summary.type_inference) {
-        return `Inferred Category: ${summary.type_inference.inferred_type}\nConfidence Level: ${summary.type_inference.confidence}%\n\nDetailed text analysis restricted pending manual review.`;
+        return `Inferred Category: ${summary.type_inference.inferred_type}\nConfidence Level: ${summary.type_inference.confidence}%\n\n${summary.summary_text || "Detailed text analysis restricted pending manual review."}`;
     }
     return JSON.stringify(summary, null, 2);
   };
