@@ -1,52 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, ShieldCheck, FileText, Paperclip, Download, AlertTriangle, CheckCircle, Lock, MessageSquare, Send, Clock, User, Share2 } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, FileText, Paperclip, Download, AlertTriangle, CheckCircle, Lock, MessageSquare, Send, Clock, User, Share2, Info } from 'lucide-react';
 import { fetchReportDetails, apiClient } from '../services/api';
+import ReferralView from './ReferralView';
+import InvestigationOutcomeForm from './InvestigationOutcomeForm';
+import { toast } from 'react-hot-toast';
 
 export default function CaseDetailView({ caseId, onBack }: { caseId: number | string, onBack: () => void }) {
   const [report, setReport] = useState<any>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
-  const [referredAuthority, setReferredAuthority] = useState('');
+  const [currentSubView, setCurrentSubView] = useState<'details' | 'referral'>('details');
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmittingNote, setIsSubmittingNote] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Check if investigation outcome has been recorded
+  const hasOutcome = logs.some(log => log.metadata?.type === 'INVESTIGATION_OUTCOME');
+
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        setIsLoading(true);
-        const [reportData, logsData] = await Promise.all([
-          fetchReportDetails(caseId),
-          apiClient.get(`/reports/${caseId}/logs`)
-        ]);
-        setReport(reportData);
-        setLogs(logsData);
-        if (reportData.referred_to_authority) {
-          setReferredAuthority(reportData.referred_to_authority);
-        }
-      } catch (err: any) {
-        setError(err.message || 'Failed to load case details.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
     loadData();
   }, [caseId]);
 
+  const loadData = async () => {
+    try {
+      setIsLoading(true);
+      const [reportData, logsData] = await Promise.all([
+        fetchReportDetails(caseId),
+        apiClient.get(`/reports/${caseId}/logs`)
+      ]);
+      setReport(reportData);
+      setLogs(logsData);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load case details.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleStatusUpdate = async (newStatus: string) => {
-    if (newStatus === 'REFERRED' && !referredAuthority) {
-      alert('Please select an authority for referral.');
+    // Enforcement: Cannot close or refer without an outcome
+    if (['REFERRED', 'CLOSED', 'SUCCESSFUL'].includes(newStatus) && !hasOutcome) {
+      toast.error('You must provide a formal Investigation Outcome before referring or closing this case.');
+      return;
+    }
+
+    if (newStatus === 'REFERRED') {
+      setCurrentSubView('referral');
       return;
     }
 
     try {
       const data = await apiClient.put(`/reports/${caseId}/status`, {
-        status: newStatus,
-        referred_to_authority: newStatus === 'REFERRED' ? referredAuthority : null
+        status: newStatus
       });
-      setReport({ ...report, status: data.status, referred_to_authority: data.referred_to_authority });
+      setReport({ ...report, status: data.status });
+      toast.success(`Case status updated to ${newStatus.replace('_', ' ')}.`);
     } catch (err) {
       console.error('Failed to update status', err);
+      toast.error('Failed to update case status.');
     }
   };
 
@@ -78,6 +89,20 @@ export default function CaseDetailView({ caseId, onBack }: { caseId: number | st
   if (isLoading) return <div className="min-h-screen bg-[#0a0f1c] flex items-center justify-center text-blue-500 font-mono text-xl animate-pulse">Decrypting Case {caseId}...</div>;
   if (error) return <div className="min-h-screen bg-[#0a0f1c] text-red-500 flex items-center justify-center">{error}</div>;
   if (!report) return null;
+
+  if (currentSubView === 'referral') {
+    return (
+      <ReferralView
+        report={report}
+        onBack={() => setCurrentSubView('details')}
+        onSuccess={() => {
+          setCurrentSubView('details');
+          loadData();
+          toast.success(`Case successfully referred to ${report.referred_to_authority || 'the selected authority'}.`);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#0a0f1c] p-8 font-sans text-slate-200">
@@ -126,6 +151,14 @@ export default function CaseDetailView({ caseId, onBack }: { caseId: number | st
             </div>
           </div>
 
+          {/* Investigation Outcome Requirement UI */}
+          {report.status === 'INVESTIGATING' && !hasOutcome && (
+            <InvestigationOutcomeForm
+              reportId={report.id}
+              onSuccess={loadData}
+            />
+          )}
+
           {/* Original Whistleblower Description */}
           <div className="bg-slate-800/40 border border-slate-700 rounded-2xl p-6">
             <h2 className="text-lg font-bold text-white mb-4">Original Submission Text</h2>
@@ -164,17 +197,29 @@ export default function CaseDetailView({ caseId, onBack }: { caseId: number | st
             {/* Timeline */}
             <div className="space-y-6 relative before:absolute before:left-4 before:top-2 before:bottom-2 before:w-px before:bg-slate-700">
               {logs.length > 0 ? (
-                logs.map((log) => (
+                logs
+                  .filter(log => {
+                    // Only show [OFFICIAL REFERRAL] logs if the case is currently REFERRED
+                    if (log.note?.includes('[OFFICIAL REFERRAL]') && report.status !== 'REFERRED') {
+                      return false;
+                    }
+                    return true;
+                  })
+                  .map((log) => (
                   <div key={log.id} className="pl-10 relative">
                     <div className="absolute left-0 top-1 w-8 h-8 bg-slate-800 border border-slate-700 rounded-full flex items-center justify-center z-10">
-                      <User className="w-4 h-4 text-slate-400" />
+                      <User className={`w-4 h-4 ${log.metadata?.type === 'INVESTIGATION_OUTCOME' ? 'text-emerald-400' : 'text-slate-400'}`} />
                     </div>
-                    <div className="bg-slate-900/50 border border-slate-800 p-4 rounded-xl">
+                    <div className={`p-4 rounded-xl border ${log.metadata?.type === 'INVESTIGATION_OUTCOME' ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-slate-900/50 border-slate-800'}`}>
                       <div className="flex justify-between items-start mb-2">
-                        <span className="font-bold text-slate-300">{log.user?.name} <span className="text-xs text-slate-500 font-normal ml-2">({log.user?.role})</span></span>
+                        <span className="font-bold text-slate-300">
+                          {log.user?.name}
+                          {log.metadata?.type === 'INVESTIGATION_OUTCOME' && <span className="ml-2 px-2 py-0.5 bg-emerald-500/20 text-emerald-400 text-[10px] rounded border border-emerald-500/30">FINAL OUTCOME</span>}
+                          <span className="text-xs text-slate-500 font-normal ml-2">({log.user?.role})</span>
+                        </span>
                         <span className="text-xs text-slate-500 flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(log.created_at).toLocaleString()}</span>
                       </div>
-                      <p className="text-slate-400 text-sm leading-relaxed">{log.note}</p>
+                      <p className={`text-sm leading-relaxed ${log.metadata?.type === 'INVESTIGATION_OUTCOME' ? 'text-slate-200' : 'text-slate-400'}`}>{log.note}</p>
                     </div>
                   </div>
                 ))
@@ -198,41 +243,31 @@ export default function CaseDetailView({ caseId, onBack }: { caseId: number | st
                 onChange={(e) => handleStatusUpdate(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-600 text-white rounded-lg p-3 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
               >
-                <option value="SUBMITTED">Submitted</option>
                 <option value="UNDER_REVIEW">Under Review</option>
                 <option value="INVESTIGATING">Investigating</option>
-                <option value="REFERRED">Referred to Authority</option>
-                <option value="CLOSED">Closed</option>
-                <option value="DISPUTED">Disputed</option>
+                <option value="REFERRED">Refer to Other Authority</option>
+                <option value="CLOSED">Closed (Unsuccessful)</option>
+                <option value="SUCCESSFUL">Closed (Successful Outcome)</option>
               </select>
 
-              {report.status === 'REFERRED' && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                  <label className="text-xs font-bold text-slate-500 uppercase flex items-center gap-1">
-                    <Share2 className="w-3 h-3" /> Prosecuting Authority
-                  </label>
-                  <select
-                    value={referredAuthority}
-                    onChange={(e) => {
-                      setReferredAuthority(e.target.value);
-                      // Auto-update if already referred
-                      if (report.status === 'REFERRED') {
-                        handleStatusUpdate('REFERRED');
-                      }
-                    }}
-                    className="w-full bg-slate-900/50 border border-indigo-500/50 text-white rounded-lg p-3 focus:outline-none focus:border-indigo-500 transition-colors"
-                  >
-                    <option value="">-- Select Authority --</option>
-                    <option value="Zimbabwe Republic Police (ZRP)">Zimbabwe Republic Police (ZRP)</option>
-                    <option value="National Prosecuting Authority (NPA)">National Prosecuting Authority (NPA)</option>
-                    <option value="Financial Intelligence Unit (FIU)">Financial Intelligence Unit (FIU)</option>
-                    <option value="Special Anti-Corruption Unit (SACU)">Special Anti-Corruption Unit (SACU)</option>
-                  </select>
+              {!hasOutcome && report.status === 'INVESTIGATING' && (
+                <div className="flex items-start gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg animate-pulse">
+                  <Info className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                  <p className="text-[10px] text-amber-200/80 leading-tight">
+                    Referral and Closing are locked until the <strong>Investigation Outcome</strong> is recorded.
+                  </p>
+                </div>
+              )}
+
+              {report.status === 'REFERRED' && report.referred_to_authority && (
+                <div className="p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-xl">
+                   <p className="text-xs font-bold text-indigo-400 uppercase mb-1">Referred To:</p>
+                   <p className="text-sm text-white font-medium">{report.referred_to_authority}</p>
                 </div>
               )}
 
               <div className="flex items-center gap-2 text-xs text-slate-500">
-                <CheckCircle className="w-3 h-3 text-emerald-500" /> Changes are persisted automatically
+                <CheckCircle className="w-3 h-3 text-emerald-500" /> Authorized Investigator View
               </div>
             </div>
           </div>

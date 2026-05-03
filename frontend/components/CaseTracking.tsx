@@ -47,6 +47,7 @@ export const CaseTracking: React.FC<CaseTrackingProps> = ({
           attachments_count: report.attachments_count ?? report.attachments?.length ?? 0,
           blockchain_tx_hash: report.blockchain_tx_hash,
           blockchain_block_number: report.blockchain_block_number,
+          referred_to_authority: report.referred_to_authority, // ADDED FIELD
         }));
         setCases(mappedCases);
       } else {
@@ -461,6 +462,17 @@ export const CaseTracking: React.FC<CaseTrackingProps> = ({
 
               {/* Blockchain Verification Section */}
               <BlockchainVerification reportId={c.id} />
+
+              {(c.status === CaseStatus.REFERRED) && (
+                <div className="mt-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/5 px-4 py-3 animate-in fade-in slide-in-from-top-2">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-1">
+                    Official Handover
+                  </p>
+                  <p className="text-sm text-slate-200 leading-relaxed">
+                    This case has been officially handed over to <span className="font-bold text-white">{c.referred_to_authority}</span> for further legal proceedings and external prosecution. ZACC will continue to monitor the progress.
+                  </p>
+                </div>
+              )}
 
               {(c.status === CaseStatus.SUCCESSFUL || c.status === CaseStatus.CLOSED) && (
                 <div className="mt-6 rounded-2xl border border-slate-200/10 bg-nexus-950/40 px-4 py-3">
