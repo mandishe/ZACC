@@ -26,24 +26,24 @@ export const Dashboard: React.FC = () => {
     const fetchCases = async () => {
       try {
         const response = await apiClient.getReports();
-        if (response?.success && Array.isArray(response.data)) {
-          setCases(
-            response.data.map((r: any) => ({
-              id: r.case_id || r.id,
-              case_id: r.case_id,
-              timestamp: r.created_at,
-              type: r.type,
-              status: r.status,
-              riskScore: r.risk_score,
-              priority: r.priority,
-              institution: r.institution,
-              description: r.description || "",
-              location: r.location || "",
-              reporterId: r.user_id,
-              referenceCode: r.reference_code,
-            })),
-          );
-        }
+        const data = Array.isArray(response) ? response : (response?.data || []);
+
+        setCases(
+          data.map((r: any) => ({
+            id: r.case_id || r.id,
+            case_id: r.case_id,
+            timestamp: r.created_at,
+            type: r.type,
+            status: r.status,
+            riskScore: r.risk_score,
+            priority: r.priority,
+            institution: r.institution,
+            description: r.description || "",
+            location: r.location || "",
+            reporterId: r.user_id,
+            referenceCode: r.reference_code,
+          })),
+        );
       } catch (err) {
         console.error("Dashboard fetch error:", err);
       } finally {

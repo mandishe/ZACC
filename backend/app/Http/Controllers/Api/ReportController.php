@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use App\Models\Report;
 use App\Models\ReportAttachment;
@@ -26,7 +27,9 @@ class ReportController extends Controller
     // =========================
     public function index()
     {
-        $reports = Report::orderBy('created_at', 'desc')->get();
+        $reports = Report::visibleTo(Auth::user())
+            ->orderBy('created_at', 'desc')
+            ->get();
         return response()->json($reports, 200);
     }
 
@@ -35,8 +38,60 @@ class ReportController extends Controller
     // =========================
     public function show($id)
     {
-        $report = Report::findOrFail($id);
+        $report = Report::with('attachments')->findOrFail($id);
+
+        // Decrypt description if encrypted
+        if ($report->is_encrypted && $report->encrypted_data) {
+            $report->description = $report->decrypted_data['description'] ?? $report->description;
+        }
+
         return response()->json($report, 200);
+    }
+
+    /**
+     * Securely download a report attachment.
+     */
+    public function downloadAttachment($id, $attachmentId)
+    {
+        $report = Report::findOrFail($id);
+        $attachment = $report->attachments()->findOrFail($attachmentId);
+
+        if (!Storage::disk($attachment->disk)->exists($attachment->file_name)) {
+            return response()->json(['message' => 'File not found.'], 404);
+        }
+
+        return Storage::disk($attachment->disk)->download(
+            $attachment->file_name,
+            $attachment->original_name
+        );
+    }
+
+    /**
+     * Update report status and handle referral.
+     */
+    public function updateStatus(Request $request, $id)
+    {
+        $report = Report::findOrFail($id);
+
+        $validated = $request->validate([
+            'status' => 'required|string|in:SUBMITTED,UNDER_REVIEW,INVESTIGATING,REFERRED,CLOSED,DISPUTED',
+            'referred_to_authority' => 'nullable|string|required_if:status,REFERRED'
+        ]);
+
+        $updateData = ['status' => $validated['status']];
+
+        if ($validated['status'] === 'REFERRED') {
+            $updateData['referred_to_authority'] = $validated['referred_to_authority'];
+            $updateData['referral_date'] = now();
+        }
+
+        $report->update($updateData);
+
+        return response()->json([
+            'message' => 'Status updated successfully.',
+            'status' => $report->status,
+            'referred_to_authority' => $report->referred_to_authority
+        ]);
     }
 
     // =========================
@@ -146,9 +201,11 @@ class ReportController extends Controller
             foreach ($savedFiles as $fileInfo) {
                 ReportAttachment::create([
                     'report_id' => $report->id,
-                    'file_name' => $fileInfo['original_name'],
-                    'file_path' => $fileInfo['path'],
-                    'mime_type' => $fileInfo['mime_type']
+                    'original_name' => $fileInfo['original_name'],
+                    'file_name' => $fileInfo['path'],
+                    'mime_type' => $fileInfo['mime_type'],
+                    'size' => Storage::size($fileInfo['path']),
+                    'disk' => 'private'
                 ]);
             }
 

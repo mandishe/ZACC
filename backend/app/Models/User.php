@@ -19,6 +19,7 @@ class User extends Authenticatable
     public const ROLE_WHISTLEBLOWER = 'WHISTLEBLOWER';
     public const ROLE_INVESTIGATOR = 'INVESTIGATOR';
     public const ROLE_ADMIN = 'ADMIN';
+    public const ROLE_EXTERNAL_AUTHORITY = 'EXTERNAL_AUTHORITY';
 
     /**
      * The attributes that are mass assignable.
@@ -30,6 +31,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'institution',
         'is_active',
         'allowed_case_types',
         'public_key',
@@ -158,6 +160,7 @@ class User extends Authenticatable
             self::ROLE_WHISTLEBLOWER => 'Whistleblower',
             self::ROLE_INVESTIGATOR => 'Investigator',
             self::ROLE_ADMIN => 'Administrator',
+            self::ROLE_EXTERNAL_AUTHORITY => 'External Authority',
         ][$this->role] ?? 'Unknown';
     }
 
@@ -191,6 +194,11 @@ class User extends Authenticatable
     public function isWhistleblower(): bool
     {
         return $this->role === self::ROLE_WHISTLEBLOWER;
+    }
+
+    public function isExternalAuthority(): bool
+    {
+        return $this->role === self::ROLE_EXTERNAL_AUTHORITY;
     }
 
     /**

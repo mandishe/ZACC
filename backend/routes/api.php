@@ -14,28 +14,6 @@ use App\Http\Controllers\Api\HotspotController;
 
 // ... other routes ...
 
-// The endpoint your frontend is hitting
-Route::post('/reports', [ReportController::class, 'store']);
-Route::get('/reports', [ReportController::class, 'index']);
-Route::get('/reports/{id}', [ReportController::class, 'show']);
-Route::get('/analytics/hotspots', [ReportController::class, 'hotspots']);
-Route::get('/track/{code}', [ReportController::class, 'track']);
-/*
-|--------------------------------------------------------------------------
-| API Routes
-|--------------------------------------------------------------------------
-| Here is where you can register API routes for your application. These
-| routes are loaded by the RouteServiceProvider and all of them will
-| be assigned to the "api" middleware group. Make something great!
-|
-*/
-
-// Public auth routes
-Route::middleware('throttle:auth')->group(function () {
-    Route::post('/auth/login', [AuthController::class, 'login']);
-    Route::post('/auth/register', [AuthController::class, 'register']);
-});
-
 // Public report routes
 Route::middleware('throttle:public-reports')->group(function () {
     Route::post('/reports/anonymous', [PublicReportController::class, 'storeAnonymous']);
@@ -50,20 +28,28 @@ Route::middleware('throttle:public-reports')->group(function () {
 });
 
 Route::post('/chatbot', [ChatbotController::class, 'chat'])->middleware('throttle:chatbot');
-// Route::post('/ai/pre-submission-suggestions-public', [AIController::class, 'preSubmissionSuggestions'])->middleware('throttle:public-reports');
-// Route::post('/ai/validate-text', [AIController::class, 'validateTextClarity'])->middleware('throttle:public-reports');
+
+// Public auth routes
+Route::middleware('throttle:auth')->group(function () {
+    Route::post('/auth/login', [AuthController::class, 'login']);
+    Route::post('/auth/register', [AuthController::class, 'register']);
+});
 
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/analytics/hotspots', [ReportController::class, 'hotspots']);
+    Route::get('/track/{code}', [ReportController::class, 'track']);
+
     // Auth routes
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/user', [AuthController::class, 'user']);
 
     // Report routes
-    //Route::get('/reports', [ReportController::class, 'index']);
+    Route::get('/reports', [ReportController::class, 'index']);
+    Route::post('/reports', [ReportController::class, 'store']);
+    Route::get('/reports/{id}', [ReportController::class, 'show'])->where('id', '[A-Za-z0-9-]+');
     Route::get('/reports/type-correction-audit', [ReportController::class, 'typeCorrectionAudit']);
     Route::get('/cases', [ReportController::class, 'index']); // Frontend alias
-    //Route::post('/reports', [ReportController::class, 'store']);
     Route::get('/reports/stats', [ReportController::class, 'stats']);
 
     // Report generation routes (must be before /reports/{id} wildcard)
@@ -80,6 +66,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/reports/{id}/verify', [ReportController::class, 'verify'])->where('id', '[A-Za-z0-9-]+');
     Route::post('/reports/{id}/stages', [CaseStageController::class, 'store'])->where('id', '[A-Za-z0-9-]+');
     Route::get('/reports/{id}/stages', [CaseStageController::class, 'index'])->where('id', '[A-Za-z0-9-]+');
+
+    // Investigation Logs
+    Route::get('/reports/{id}/logs', [\App\Http\Controllers\Api\InvestigationLogController::class, 'index'])->where('id', '[A-Za-z0-9-]+');
+    Route::post('/reports/{id}/logs', [\App\Http\Controllers\Api\InvestigationLogController::class, 'store'])->where('id', '[A-Za-z0-9-]+');
+
     Route::get('/notifications', [CaseStageController::class, 'notifications']);
     Route::get('/audit/logs', [AuditController::class, 'index']);
 

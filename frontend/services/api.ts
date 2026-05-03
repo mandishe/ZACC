@@ -315,22 +315,24 @@ export const apiClient = new ApiClient();
 // ... existing code ...
 
 export const submitReport = async (description: string, files: File[]) => {
-  // 1. Create a new FormData object
   const formData = new FormData();
-  
-  // 2. Append the text description
   formData.append('description', description);
-  
-  // 3. Append each file. Notice the 'files[]' syntax - this tells Laravel to expect an array of files.
   files.forEach((file) => {
     formData.append('files[]', file);
   });
 
-  // 4. Send the POST request
-  // Note: We deliberately DO NOT set the 'Content-Type' header here. 
-  // The browser automatically sets it to 'multipart/form-data' with the correct boundary when it sees a FormData object.
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/reports`, {
+  const headers: Record<string, string> = {
+    'Accept': 'application/json',
+  };
+
+  const token = localStorage.getItem('nexus_token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetch(`${API_URL}/reports`, {
     method: 'POST',
+    headers,
     body: formData,
   });
 
@@ -343,62 +345,17 @@ export const submitReport = async (description: string, files: File[]) => {
 };
 
 export const fetchReports = async () => {
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/reports`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch reports from the server.');
-  }
-
-  return response.json();
+  return apiClient.getReports();
 };
 
 export const fetchReportDetails = async (id: number | string) => {
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/reports/${id}`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch case details.');
-  }
-
-  return response.json();
+  return apiClient.get(`/reports/${id}`);
 };
 
 export const fetchHotspots = async () => {
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/analytics/hotspots`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-    }
-  });
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch analytics data.');
-  }
-
-  return response.json();
+  return apiClient.get('/analytics/hotspots');
 };
 
 export const trackCase = async (trackingCode: string) => {
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/track/${trackingCode}`, {
-    method: 'GET',
-    headers: {
-      'Accept': 'application/json',
-    }
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.message || 'Case not found. Please check your code.');
-  }
-
-  return response.json();
+  return apiClient.get(`/track/${trackingCode}`);
 };

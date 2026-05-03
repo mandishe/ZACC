@@ -50,6 +50,8 @@ class Report extends Model
         'is_encrypted',
         'report_language',
         'text_clarity_score',
+        'referred_to_authority',
+        'referral_date',
     ];
 
     /**
@@ -130,6 +132,7 @@ class Report extends Model
         'risk_score' => 'integer',
         'text_clarity_score' => 'integer',
         'ai_summary' => 'array',
+        'referral_date' => 'datetime',
     ];
 
     protected $appends = ['is_owner', 'can_view', 'can_edit', 'decrypted_data'];
@@ -269,7 +272,11 @@ class Report extends Model
         }
 
         if ($user->isInvestigator()) {
-            return $query->whereIn('status', ['SUBMITTED', 'UNDER_REVIEW', 'INVESTIGATING']);
+            return $query->whereIn('status', ['SUBMITTED', 'UNDER_REVIEW', 'INVESTIGATING', 'REFERRED', 'CLOSED']);
+        }
+
+        if ($user->isExternalAuthority()) {
+            return $query->where('referred_to_authority', $user->institution);
         }
 
         // Regular users can only see their own reports
