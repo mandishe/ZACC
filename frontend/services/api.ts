@@ -116,11 +116,31 @@ class ApiClient {
   }
 
   async createReport(data: any) {
-    return this.request('/reports', 'POST', data);
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (key !== 'files') {
+        formData.append(key, data[key]);
+      }
+    });
+    if (data.files && Array.isArray(data.files)) {
+      data.files.forEach((file: File) => formData.append('evidence[]', file));
+    }
+
+    return this.requestFormData('/reports', formData);
   }
 
   async createAnonymousReport(data: any) {
-    return this.request('/reports/anonymous', 'POST', data);
+    const formData = new FormData();
+    Object.keys(data).forEach(key => {
+      if (key !== 'files') {
+        formData.append(key, data[key]);
+      }
+    });
+    if (data.files && Array.isArray(data.files)) {
+      data.files.forEach((file: File) => formData.append('evidence[]', file));
+    }
+
+    return this.requestFormData('/reports/anonymous', formData);
   }
 
   async trackCase(trackingCode: string) {
@@ -315,31 +335,7 @@ export const apiClient = new ApiClient();
 // ... existing code ...
 
 export const submitReport = async (description: string, files: File[]) => {
-  // 1. Create a new FormData object
-  const formData = new FormData();
-  
-  // 2. Append the text description
-  formData.append('description', description);
-  
-  // 3. Append each file. Notice the 'files[]' syntax - this tells Laravel to expect an array of files.
-  files.forEach((file) => {
-    formData.append('files[]', file);
-  });
-
-  // 4. Send the POST request
-  // Note: We deliberately DO NOT set the 'Content-Type' header here. 
-  // The browser automatically sets it to 'multipart/form-data' with the correct boundary when it sees a FormData object.
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/reports`, {
-    method: 'POST',
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => null);
-    throw new Error(errorData?.message || 'Failed to submit the secure report.');
-  }
-
-  return response.json();
+  return apiClient.createAnonymousReport({ description, files });
 };
 
 export const fetchReports = async () => {

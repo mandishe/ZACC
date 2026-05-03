@@ -8,6 +8,8 @@ use App\Models\Report;
 use App\Models\ReportAttachment;
 use App\Services\ExpertEvaluationService;
 use Illuminate\Support\Facades\Crypt; // Required for backend encryption
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\JsonResponse;
 
 class PublicReportController extends Controller
 {
@@ -18,11 +20,39 @@ class PublicReportController extends Controller
         $this->aiService = $aiService;
     }
 
+    /**
+     * Get public statistics for the dashboard.
+     */
+    public function publicStats(): JsonResponse
+    {
+        $byStatus = Report::select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->get()
+            ->pluck('total', 'status')
+            ->toArray();
+
+        // Active investigations are SUBMITTED, UNDER_REVIEW, INVESTIGATING
+        $activeInvestigations = ($byStatus['SUBMITTED'] ?? 0) +
+            ($byStatus['UNDER_REVIEW'] ?? 0) +
+            ($byStatus['INVESTIGATING'] ?? 0);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'by_status' => $byStatus,
+                'resolved_total' => $byStatus['CLOSED'] ?? 0,
+                'active_investigations' => $activeInvestigations,
+                'total_reports' => Report::count(),
+            ],
+        ]);
+    }
+
     public function storeAnonymous(Request $request)
     {
         // 1. Validate the incoming RAW text and files
         $validated = $request->validate([
             'description' => 'required|string',
+            'institution' => 'required|string',
             'province'    => 'nullable|string',
             'location'    => 'nullable|string',
             'evidence'    => 'nullable|array|max:10',
@@ -34,18 +64,20 @@ class PublicReportController extends Controller
         // 2. AI reads the RAW description and RAW files
         $aiAnalysis = $this->aiService->evaluateReport(
             $validated['description'],
-            $evidenceFiles
+            is_array($evidenceFiles) ? $evidenceFiles : [$evidenceFiles]
         );
 
         // 3. Encrypt the description BEFORE saving it to the database
-        // Note: If your Report.php model already uses `$casts = ['description' => 'encrypted']`, 
+        // Note: If your Report.php model already uses `$casts = ['description' => 'encrypted']`,
         // you can remove the Crypt::encryptString wrapper and just pass $validated['description'].
         $secureDescription = Crypt::encryptString($validated['description']);
 
         // 4. Save the report securely
         $report = Report::create([
+            'case_id' => Report::generateCaseId(),
             'reference_code' => 'ZACC-REF-' . strtoupper(substr(uniqid(), -4)),
             'description' => $secureDescription, // Now it is secure at rest!
+            'institution' => $validated['institution'],
             'type' => $aiAnalysis['type_inference']['inferred_type'] ?? 'Unclassified',
             'risk_score' => $aiAnalysis['risk_score'] ?? 0,
             'ai_summary' => [
@@ -59,21 +91,27 @@ class PublicReportController extends Controller
 
         // 5. Save the physical files and link them in the database
         if (!empty($evidenceFiles)) {
-            foreach ($evidenceFiles as $file) {
+            $files = is_array($evidenceFiles) ? $evidenceFiles : [$evidenceFiles];
+            foreach ($files as $file) {
                 // Stores in storage/app/public/evidence
                 $path = $file->store('evidence', 'public');
 
                 ReportAttachment::create([
                     'report_id' => $report->id,
-                    'file_name' => $file->getClientOriginalName(),
-                    'file_path' => $path,
+                    'original_name' => $file->getClientOriginalName(),
+                    'file_name' => $path, // This maps to the internal storage path required by the DB
+                    'file_path' => $path, // Keeping this for model compatibility if needed
                     'mime_type' => $file->getMimeType(),
-                    'file_size' => $file->getSize(),
+                    'size' => $file->getSize(), // Correct column name is 'size', not 'file_size'
                 ]);
             }
         }
 
         // Return the report with the attachments loaded so the UI updates instantly
-        return response()->json($report->load('attachments'), 201);
+        return response()->json([
+            'success' => true,
+            'message' => 'Report submitted successfully',
+            'data' => $report->load('attachments')
+        ], 201);
     }
 }

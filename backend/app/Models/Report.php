@@ -132,7 +132,7 @@ class Report extends Model
         'ai_summary' => 'array',
     ];
 
-    protected $appends = ['is_owner', 'can_view', 'can_edit', 'decrypted_data'];
+    protected $appends = ['is_owner', 'can_view', 'can_edit', 'decrypted_data', 'file_count'];
 
     protected $hidden = [
         'user_id',
@@ -140,6 +140,14 @@ class Report extends Model
         'user_agent',
         'encrypted_data',
     ];
+
+    /**
+     * Get the count of attachments.
+     */
+    public function getFileCountAttribute(): int
+    {
+        return $this->attachments()->count();
+    }
 
     /**
      * Get the user that owns the report.

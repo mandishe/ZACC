@@ -26,7 +26,7 @@ class ReportController extends Controller
     // =========================
     public function index()
     {
-        $reports = Report::orderBy('created_at', 'desc')->get();
+        $reports = Report::with('attachments')->orderBy('created_at', 'desc')->get();
         return response()->json($reports, 200);
     }
 
@@ -35,7 +35,7 @@ class ReportController extends Controller
     // =========================
     public function show(string $id)
     {
-        $report = Report::findOrFail($id);
+        $report = Report::with('attachments')->findOrFail($id);
         return response()->json($report, 200);
     }
 

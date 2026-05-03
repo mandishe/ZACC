@@ -385,34 +385,17 @@ export const PublicPortal: React.FC<PublicPortalProps> = ({
     resetMessages();
     try {
       const selectedEvidenceCount = reportFiles.length;
-      const response = await apiClient.createAnonymousReport(formData);
+      // UNIFIED SUBMISSION: Pass description, institution, location, and files in one go.
+      const response = await apiClient.createAnonymousReport({
+        ...formData,
+        files: reportFiles
+      });
+
       if (!response.success) throw new Error(response.message || "Failed to submit report");
 
       let uploadNotice: string | null = null;
-      if (reportFiles.length > 0 && response.data?.reference_code) {
-        try {
-          let uploadResp: any;
-          try {
-            uploadResp = await apiClient.uploadEvidence(
-              response.data.reference_code,
-              reportFiles,
-            );
-          } catch (primaryError) {
-            // Fallback: some environments resolve by case_id more reliably than reference_code.
-            if (response.data?.case_id) {
-              uploadResp = await apiClient.uploadEvidence(response.data.case_id, reportFiles);
-            } else {
-              throw primaryError;
-            }
-          }
-
-          const uploadedCount = uploadResp?.data?.uploaded?.length ?? reportFiles.length;
-          uploadNotice = `${uploadedCount} evidence file${uploadedCount === 1 ? "" : "s"} uploaded with your report.`;
-        } catch (uploadErr: any) {
-          uploadNotice = uploadErr?.message
-            ? `Your report was submitted, but evidence upload failed: ${uploadErr.message}. You can upload evidence later in Track Case.`
-            : "Your report was submitted, but evidence upload failed. You can upload evidence later in Track Case.";
-        }
+      if (selectedEvidenceCount > 0) {
+        uploadNotice = `${selectedEvidenceCount} evidence file${selectedEvidenceCount === 1 ? "" : "s"} uploaded with your report.`;
       }
 
       setReportUploadNotice(uploadNotice);
